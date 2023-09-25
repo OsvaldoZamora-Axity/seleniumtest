@@ -19,11 +19,11 @@ steps:
 
 - task: NuGetCommand@2
   inputs:
-    restoreSolution: '$(solution)'
+    restoreSolution: '$(SeleniumProject.sln)'
 
 - task: VSBuild@1
   inputs:
-    solution: '$(solution)'
+    solution: '$(SeleniumProject.sln)'
     msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
@@ -32,3 +32,37 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+- task: AzureRmWebAppDeployment@4
+  inputs:
+    ConnectionType: 'AzureRM'
+    appType: 'webApp'
+    WebAppName: 
+    packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.zip'
+
+
+steps:
+- script: |
+    # Restore NuGet packages
+    nuget restore ${{ variables.solutionPath }}
+    # Build the project
+    msbuild ${{ variables.solutionPath }} /p:Configuration=${{ variables.buildConfiguration }}
+  displayName: 'Restore and Build'
+
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    installationPath: $(Agent.ToolsDirectory)/dotnet  # Install .NET SDK
+    installationVersion: '3.x'  # Specify the desired .NET SDK version
+  displayName: 'Install .NET SDK'
+
+- script: |
+    # Run unit tests using MSTest, NUnit, or any other test framework
+    dotnet test ${{ variables.solutionPath }} --configuration ${{ variables.buildConfiguration }}
+  displayName: 'Run Unit Tests'
+
+- script: |
+    # You may need to install the Chrome WebDriver or any other browser driver here
+    # Execute your Selenium tests here
+    # You may use a testing framework like NUnit or MSTest
+    # Example: dotnet test YourSeleniumTestProject.dll --configuration ${{ variables.buildConfiguration }}
+  displayName: 'Run Selenium Tests'
